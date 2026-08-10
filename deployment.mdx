@@ -1,0 +1,212 @@
+---
+title: "Deployment"
+description: "Deploy Suno API to Vercel, Docker Compose, or run it locally."
+---
+
+## Environment variables
+
+All deployment options share the same set of environment variables. Configure these before starting the server.
+
+| Variable | Required | Description |
+|---|---|---|
+| `SUNO_COOKIE` | Yes | Full `Cookie` header string copied from your browser's DevTools while on suno.com |
+| `TWOCAPTCHA_KEY` | Yes | API key from your [2Captcha](https://2captcha.com/enterpage#recognition) account |
+| `BROWSER` | Yes | Browser to use for CAPTCHA solving. `chromium` (recommended) or `firefox` |
+| `BROWSER_GHOST_CURSOR` | No | Simulate smooth mouse movements with ghost-cursor-playwright. Set to `false` — it does not reduce CAPTCHA frequency |
+| `BROWSER_LOCALE` | No | Browser locale sent to 2Captcha workers. `en` or `ru` recommended for fastest solving |
+| `BROWSER_HEADLESS` | No | Run the browser without a visible window. Set to `true` on servers |
+| `BROWSER_DISABLE_GPU` | No | Disable GPU acceleration. Set automatically to `true` inside Docker |
+
+---
+
+<Tabs>
+  <Tab title="Vercel">
+    Vercel is the fastest way to get a public HTTPS endpoint without managing infrastructure.
+
+    <Warning>
+      Vercel serverless functions have a **10-second execution timeout** on the Hobby plan. Suno generation requests often take longer than that. If you hit timeouts frequently, use the Docker or local deployment instead, or upgrade to a Vercel Pro plan (60-second limit).
+    </Warning>
+
+    <Steps>
+      <Step title="Click Deploy">
+        [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fgcui-art%2Fsuno-api&env=SUNO_COOKIE,TWOCAPTCHA_KEY,BROWSER,BROWSER_GHOST_CURSOR,BROWSER_LOCALE,BROWSER_HEADLESS&project-name=suno-api&repository-name=suno-api)
+
+        Or open the URL directly:
+        ```
+        https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fgcui-art%2Fsuno-api&env=SUNO_COOKIE,TWOCAPTCHA_KEY,BROWSER,BROWSER_GHOST_CURSOR,BROWSER_LOCALE,BROWSER_HEADLESS&project-name=suno-api&repository-name=suno-api
+        ```
+      </Step>
+
+      <Step title="Set environment variables">
+        Vercel will prompt you to fill in the environment variables during the clone flow. Set at minimum:
+
+        ```
+        SUNO_COOKIE=<your cookie>
+        TWOCAPTCHA_KEY=<your 2captcha key>
+        BROWSER=chromium
+        BROWSER_GHOST_CURSOR=false
+        BROWSER_LOCALE=en
+        BROWSER_HEADLESS=true
+        ```
+
+        You can also add or change variables later in **Project Settings → Environment Variables** in the Vercel dashboard.
+      </Step>
+
+      <Step title="Wait for the deployment to finish">
+        Vercel will fork the repository to your GitHub account, build the Next.js app, and deploy it. This usually takes 2–4 minutes.
+      </Step>
+
+      <Step title="Test the deployment">
+        Replace `<your-vercel-domain>` with the domain Vercel assigned to your project:
+
+        ```bash
+        curl https://<your-vercel-domain>/api/get_limit
+        ```
+
+        Expected response:
+
+        ```json
+        {
+          "credits_left": 50,
+          "period": "day",
+          "monthly_limit": 50,
+          "monthly_usage": 50
+        }
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Docker Compose">
+    Docker Compose runs Suno API in a container. The image installs Playwright's Chromium browser and all system dependencies automatically.
+
+    <Warning>
+      GPU acceleration is **disabled** inside the Docker container (`BROWSER_DISABLE_GPU=true` is set in the Dockerfile). If you have a slow CPU, generation may be sluggish. In that case, prefer the local deployment.
+    </Warning>
+
+    <Steps>
+      <Step title="Create your .env file">
+        The Compose file reads variables from `.env` at runtime and also passes `SUNO_COOKIE` as a build argument.
+
+        ```bash
+        cp .env.example .env
+        # Edit .env and fill in SUNO_COOKIE, TWOCAPTCHA_KEY, and the BROWSER_* variables
+        ```
+
+        `.env` format:
+
+        ```bash
+        SUNO_COOKIE=<your cookie>
+        TWOCAPTCHA_KEY=<your 2captcha key>
+        BROWSER=chromium
+        BROWSER_GHOST_CURSOR=false
+        BROWSER_LOCALE=en
+        BROWSER_HEADLESS=true
+        ```
+      </Step>
+
+      <Step title="Build and start the container">
+        ```bash
+        docker compose build && docker compose up
+        ```
+
+        The `docker-compose.yml` used:
+
+        ```yaml
+        version: '3'
+
+        services:
+          suno-api:
+            build:
+              context: .
+              args:
+                SUNO_COOKIE: ${SUNO_COOKIE}
+            volumes:
+              - ./public:/app/public
+            ports:
+              - "3000:3000"
+            env_file: ".env"
+        ```
+
+        The server listens on port `3000`.
+      </Step>
+
+      <Step title="Verify the server">
+        ```bash
+        curl http://localhost:3000/api/get_limit
+        ```
+      </Step>
+    </Steps>
+
+    <Note>
+      The `./public` directory is mounted as a volume so that CAPTCHA instruction images (used by the 2Captcha solver) are accessible inside the container without requiring a rebuild.
+    </Note>
+  </Tab>
+
+  <Tab title="Run locally">
+    Running locally is the simplest option for development and is recommended for **macOS** users.
+
+    <Tip>
+      macOS systems receive significantly fewer hCaptcha challenges than Linux or Windows. This is because macOS has low representation in the web-scraping industry, so Suno's fraud-detection model is less suspicious of it. Fewer CAPTCHAs means lower 2Captcha costs and faster responses.
+    </Tip>
+
+    <Steps>
+      <Step title="Clone the repository">
+        ```bash
+        git clone https://github.com/gcui-art/suno-api.git
+        cd suno-api
+        ```
+      </Step>
+
+      <Step title="Install dependencies">
+        ```bash
+        npm install
+        ```
+
+        This installs all Node packages including `rebrowser-playwright-core` and the `@playwright/browser-chromium` browser binary.
+      </Step>
+
+      <Step title="Create and configure .env">
+        ```bash
+        cp .env.example .env
+        ```
+
+        Edit `.env`:
+
+        ```bash
+        SUNO_COOKIE=<your cookie>
+        TWOCAPTCHA_KEY=<your 2captcha key>
+        BROWSER=chromium
+        BROWSER_GHOST_CURSOR=false
+        BROWSER_LOCALE=en
+        BROWSER_HEADLESS=true
+        ```
+      </Step>
+
+      <Step title="Start the server">
+        ```bash
+        npm run dev
+        ```
+
+        The Next.js dev server starts on `http://localhost:3000` with hot-reload enabled.
+      </Step>
+
+      <Step title="Verify the server">
+        ```bash
+        curl http://localhost:3000/api/get_limit
+        ```
+
+        Expected response:
+
+        ```json
+        {
+          "credits_left": 50,
+          "period": "day",
+          "monthly_limit": 50,
+          "monthly_usage": 50
+        }
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>

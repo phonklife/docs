@@ -1,0 +1,96 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "Suno API",
+  "theme": "sequoia",
+  "colors": {
+    "primary": "#342e7d",
+    "light": "#6c64a0",
+    "dark": "#342e7d"
+  },
+  "favicon": "/favicon.svg",
+  "logo": {
+    "light": "https://media.brand.dev/b188703c-a698-4f8a-b079-18fde6607d5b.png",
+    "dark": "https://media.brand.dev/b188703c-a698-4f8a-b079-18fde6607d5b.png"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/gcui-art/suno-api"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/gcui-art/suno-api"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "deployment"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/environment-variables",
+              "configuration/authentication",
+              "configuration/captcha"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/generate-music",
+              "guides/custom-mode",
+              "guides/agent-integration"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Music Generation",
+            "pages": [
+              "api-reference/generate",
+              "api-reference/custom-generate",
+              "api-reference/extend-audio",
+              "api-reference/concat"
+            ]
+          },
+          {
+            "group": "Lyrics & Stems",
+            "pages": [
+              "api-reference/generate-lyrics",
+              "api-reference/generate-stems",
+              "api-reference/get-aligned-lyrics"
+            ]
+          },
+          {
+            "group": "Retrieval & Account",
+            "pages": [
+              "api-reference/get",
+              "api-reference/clip",
+              "api-reference/get-limit",
+              "api-reference/persona"
+            ]
+          },
+          {
+            "group": "OpenAI Compatible",
+            "pages": [
+              "api-reference/chat-completions"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

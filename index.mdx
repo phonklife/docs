@@ -1,0 +1,101 @@
+---
+title: "Suno API"
+description: "Programmatically generate AI music from Suno.ai. Integrate music generation into your apps, agents, and workflows."
+---
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get your first song generated in under 5 minutes.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/generate">
+    Explore all endpoints with full parameter docs.
+  </Card>
+  <Card title="Deployment" icon="server" href="/deployment">
+    Deploy with Vercel, Docker, or run locally.
+  </Card>
+  <Card title="Agent Integration" icon="robot" href="/guides/agent-integration">
+    Use Suno API as a tool in GPTs, Coze, and LangChain.
+  </Card>
+</CardGroup>
+
+## What is Suno API?
+
+Suno API is an open-source REST API wrapper for [Suno.ai](https://suno.ai) — the AI music generation service. Because Suno does not yet offer an official API, this project bridges that gap by automating the web interface and exposing a clean HTTP API you can call from any language or platform.
+
+<Note>
+  Suno API is an unofficial open-source project intended for learning and research purposes. It is not affiliated with or endorsed by Suno.ai.
+</Note>
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Music from text prompts" icon="music">
+    Send a text description and get back audio URLs for two AI-generated song variations.
+  </Card>
+  <Card title="Custom Mode" icon="sliders">
+    Control lyrics, style tags, title, and negative tags for precise creative direction.
+  </Card>
+  <Card title="Automatic CAPTCHA solving" icon="shield-check">
+    Uses 2Captcha and Playwright to solve hCaptcha challenges automatically — no manual intervention.
+  </Card>
+  <Card title="OpenAI-compatible endpoint" icon="brain">
+    Drop-in `/v1/chat/completions` endpoint lets you use Suno API with any OpenAI-compatible client.
+  </Card>
+  <Card title="Extend & concat audio" icon="layer-group">
+    Extend existing clips or concatenate extensions into a full song.
+  </Card>
+  <Card title="Stems & lyric timing" icon="waveform">
+    Separate vocal and instrumental tracks; get word-level timestamp data.
+  </Card>
+  <Card title="One-click deploy" icon="bolt">
+    Deploy to Vercel in one click, or run with Docker Compose — no complex setup.
+  </Card>
+  <Card title="Multi-account support" icon="users">
+    Override the default cookie per-request to rotate across multiple Suno accounts.
+  </Card>
+</CardGroup>
+
+## How it works
+
+Suno API runs as a Next.js application. It authenticates with Suno using your browser cookie, maintains an active session automatically, and proxies generation requests to Suno's internal API. When Suno requires hCaptcha verification, it spins up a headless Playwright browser, sends the CAPTCHA image to 2Captcha for solving, and completes the challenge on your behalf.
+
+```
+Your app  →  POST /api/generate  →  Suno API server  →  Suno.ai
+                                           ↕
+                               2Captcha (when CAPTCHA required)
+```
+
+## Supported endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/generate` | POST | Generate music from a text prompt |
+| `/api/custom_generate` | POST | Generate with custom lyrics, tags, and title |
+| `/api/extend_audio` | POST | Extend an existing audio clip |
+| `/api/concat` | POST | Concatenate clip extensions into a full song |
+| `/api/generate_lyrics` | POST | Generate lyrics from a prompt |
+| `/api/generate_stems` | POST | Separate audio into vocal and instrumental stems |
+| `/api/get_aligned_lyrics` | GET | Get word-level lyric timestamps |
+| `/api/get` | GET | Retrieve audio info by ID(s) |
+| `/api/clip` | GET | Get clip details by ID |
+| `/api/get_limit` | GET | Check remaining credit quota |
+| `/v1/chat/completions` | POST | OpenAI-compatible generation endpoint |
+
+## Get started
+
+<Steps>
+  <Step title="Obtain your Suno cookie">
+    Log in to [suno.com/create](https://suno.com/create), open DevTools → Network tab, refresh, and copy the `Cookie` header from any request containing `__clerk_api_version`.
+  </Step>
+  <Step title="Get a 2Captcha API key">
+    Register at [2captcha.com](https://2captcha.com), top up your balance, and copy your API key. Suno requires hCaptcha solving for music generation.
+  </Step>
+  <Step title="Deploy Suno API">
+    Deploy to [Vercel](/deployment#deploy-to-vercel) with one click, or run locally with `npm run dev`. Set the `SUNO_COOKIE` and `TWOCAPTCHA_KEY` environment variables.
+  </Step>
+  <Step title="Make your first API call">
+    Send a POST request to `/api/generate` with a text prompt and get back two song variations within minutes.
+  </Step>
+</Steps>
+
+Ready to start? Follow the [quickstart guide](/quickstart) for a complete walkthrough.

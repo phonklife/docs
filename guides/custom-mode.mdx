@@ -1,0 +1,222 @@
+---
+title: "Custom Mode"
+description: "Provide your own lyrics, style tags, and title for full control over generated music."
+---
+
+## What is Custom Mode?
+
+By default, `/api/generate` lets Suno write the lyrics and pick a style based on your prompt. **Custom Mode** reverses this: you supply the lyrics, the musical style via tags, and the title, and Suno focuses on realising your creative brief rather than inventing one.
+
+Use `POST /api/custom_generate` instead of `/api/generate`.
+
+## Request fields
+
+<ParamField body="prompt" type="string" required>
+  The full lyrics text. In Custom Mode, this field contains the actual song lyrics rather than a description. Suno uses section markers like `[Verse]`, `[Chorus]`, `[Bridge]` to understand song structure.
+</ParamField>
+
+<ParamField body="tags" type="string" required>
+  A comma-separated string of musical style and genre descriptors. These guide the instrumentation, tempo, and vocal style. For example: `"heavy metal, electric guitar, drums"`.
+</ParamField>
+
+<ParamField body="title" type="string" required>
+  The title of the song. Appears in the returned `AudioInfo` object's `title` field.
+</ParamField>
+
+<ParamField body="make_instrumental" type="boolean">
+  When `true`, the lyrics in `prompt` are ignored and Suno generates a purely instrumental track matching the style tags. Defaults to `false`.
+</ParamField>
+
+<ParamField body="model" type="string">
+  The Suno model to use. Defaults to `chirp-v3-5`.
+</ParamField>
+
+<ParamField body="wait_audio" type="boolean">
+  When `true`, the server waits up to 100 seconds for generation to complete before responding. When `false` (default), returns immediately with status `"submitted"`. See [polling for completion](/guides/generate-music#polling-for-completion).
+</ParamField>
+
+<ParamField body="negative_tags" type="string">
+  Styles and elements to exclude from the generation. For example: `"no piano, no drums"`.
+</ParamField>
+
+## Writing effective tags
+
+Tags are the primary way to shape the sound of a Custom Mode generation. Think of them as a genre and production brief compressed into a short string.
+
+<Tip>
+  Be specific. `"upbeat pop, female vocalist, synth, 120bpm"` will produce more consistent results than just `"pop"`.
+</Tip>
+
+Some examples:
+
+| Desired sound | Tags |
+|---|---|
+| Radio-ready pop | `upbeat pop, female vocalist, synth, catchy hook` |
+| Relaxed study music | `lo-fi hip hop, chill, rain ambience, vinyl crackle` |
+| Film score feel | `epic orchestral, cinematic, strings, choir` |
+| Heavy rock | `heavy metal, electric guitar, drums, distortion` |
+| Acoustic singer-songwriter | `acoustic folk, fingerpicking, male vocalist, intimate` |
+
+Separate each tag with a comma. Tags are case-insensitive.
+
+## Negative tags
+
+Use `negative_tags` to prevent specific elements from appearing in the track. This is useful when a style tends to include sounds you want to exclude.
+
+```json
+{
+  "tags": "jazz, piano, upright bass",
+  "negative_tags": "no drums, no trumpet"
+}
+```
+
+Common negative tags:
+
+- `no piano` — remove piano from an otherwise piano-heavy genre
+- `no drums` — useful for ambient or solo instrument tracks
+- `acoustic only` — suppress electric instruments
+- `no vocals` — alternative to setting `make_instrumental: true`
+
+## Instrumental mode
+
+Set `make_instrumental: true` to generate music without any lyrics or vocals. The `prompt` field is ignored when this flag is set — you only need to provide `tags` and `title`.
+
+```json
+{
+  "prompt": "",
+  "tags": "epic orchestral, cinematic, strings, no vocals",
+  "title": "Battle Theme",
+  "make_instrumental": true,
+  "model": "chirp-v3-5",
+  "wait_audio": false
+}
+```
+
+## Extending a custom song
+
+After you generate a clip, you can continue it with new content using `POST /api/extend_audio`. This is useful for building longer songs section by section.
+
+<ParamField body="audio_id" type="string" required>
+  The `id` of the existing clip to extend.
+</ParamField>
+
+<ParamField body="prompt" type="string">
+  Additional lyrics for the extension.
+</ParamField>
+
+<ParamField body="continue_at" type="number">
+  Timestamp in seconds from which to branch the extension. Defaults to the end of the clip. Pass a value like `30` to branch from the 30-second mark instead.
+</ParamField>
+
+<ParamField body="tags" type="string">
+  Style tags for the extension. Can differ from the original to transition the sound.
+</ParamField>
+
+<ParamField body="negative_tags" type="string">
+  Styles to exclude from the extension.
+</ParamField>
+
+<ParamField body="title" type="string">
+  Title for the extended clip.
+</ParamField>
+
+<ParamField body="model" type="string">
+  Model to use. Defaults to `chirp-v3-5`.
+</ParamField>
+
+<ParamField body="wait_audio" type="boolean">
+  Whether to wait for the extension to finish before responding.
+</ParamField>
+
+## Complete example
+
+The following example generates a custom song and then polls for completion.
+
+<CodeGroup>
+
+```bash curl
+# Step 1 — generate
+curl -X POST http://localhost:3000/api/custom_generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "[Verse]\nSilver stars above the sea\nWaves that carry you to me\n[Chorus]\nOcean deep and sky so wide\nYou are always by my side",
+    "tags": "upbeat pop, female vocalist, synth, ocean vibes",
+    "title": "Ocean Wide",
+    "make_instrumental": false,
+    "model": "chirp-v3-5",
+    "wait_audio": false
+  }'
+
+# Step 2 — poll until streaming
+curl "http://localhost:3000/api/get?ids=<id1>,<id2>"
+```
+
+```python Python
+import time
+import requests
+
+base_url = 'http://localhost:3000'
+
+def custom_generate_audio(payload):
+    url = f"{base_url}/api/custom_generate"
+    response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
+    return response.json()
+
+def get_audio_information(audio_ids):
+    url = f"{base_url}/api/get?ids={audio_ids}"
+    response = requests.get(url)
+    return response.json()
+
+# Generate
+data = custom_generate_audio({
+    "prompt": "[Verse]\nSilver stars above the sea\nWaves that carry you to me\n[Chorus]\nOcean deep and sky so wide\nYou are always by my side",
+    "tags": "upbeat pop, female vocalist, synth, ocean vibes",
+    "title": "Ocean Wide",
+    "make_instrumental": False,
+    "model": "chirp-v3-5",
+    "wait_audio": False
+})
+
+ids = f"{data[0]['id']},{data[1]['id']}"
+print(f"ids: {ids}")
+
+# Poll for completion
+for _ in range(60):
+    result = get_audio_information(ids)
+    if result[0]["status"] == 'streaming':
+        print(f"{result[0]['id']} ==> {result[0]['audio_url']}")
+        print(f"{result[1]['id']} ==> {result[1]['audio_url']}")
+        break
+    time.sleep(5)
+```
+
+</CodeGroup>
+
+### Extending the generated clip
+
+```python Python
+import requests
+
+base_url = 'http://localhost:3000'
+
+def extend_audio(payload):
+    url = f"{base_url}/api/extend_audio"
+    response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
+    return response.json()
+
+# Extend from the end of the original clip
+extension = extend_audio({
+    "audio_id": data[0]["id"],
+    "prompt": "[Bridge]\nFar across the endless blue\nEvery tide brings me back to you",
+    "tags": "upbeat pop, female vocalist, synth, ocean vibes",
+    "title": "Ocean Wide (Extended)",
+    "model": "chirp-v3-5",
+    "wait_audio": False
+})
+
+print(extension)
+```
+
+<Note>
+  `extend_audio` returns a new `AudioInfo` array with fresh clip IDs. Poll these new IDs the same way you poll the original generation.
+</Note>

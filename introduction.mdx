@@ -1,0 +1,82 @@
+---
+title: "Introduction"
+description: "Suno API is an unofficial open-source REST API wrapper for suno.ai, enabling programmatic music generation before an official API exists."
+---
+
+## What is Suno API?
+
+Suno API is an open-source project that exposes the music generation capabilities of [suno.ai](https://suno.ai) as a standard REST API. Because Suno has not released an official public API, this project reverse-engineers the internal endpoints and wraps them in a self-hostable Next.js application you can call from any language or platform.
+
+It is intended for learning and research purposes. The project is published under the **LGPL-3.0** license, which permits free use, integration, and modification provided derivative works carry the same license.
+
+## Why it exists
+
+Suno produces high-quality AI-generated music but provides no official API for developers. Suno API fills that gap — letting you generate songs, extend clips, create stem tracks, and retrieve lyrics timestamps through simple HTTP calls, exactly the way you would call any other REST API.
+
+## How it works
+
+### Authentication
+
+Suno API authenticates with Suno on your behalf by replaying the browser `Cookie` header that your own browser sends when you visit [suno.com](https://suno.com). The session token inside that cookie is short-lived, so the server automatically renews it by calling Clerk's `/v1/client/sessions/{sid}/tokens` endpoint at regular intervals — this is the **keep-alive** mechanism.
+
+### CAPTCHA solving
+
+Suno requires an hCaptcha challenge before each generation request. Suno API handles this automatically using two libraries:
+
+| Component | Role |
+|---|---|
+| [Playwright](https://playwright.dev) via [rebrowser-patches](https://github.com/rebrowser/rebrowser-patches) | Launches a headless Chromium or Firefox browser, navigates to `suno.com/create`, and triggers the CAPTCHA |
+| [2Captcha](https://2captcha.com) | Receives a screenshot of the CAPTCHA challenge and returns click coordinates solved by human workers |
+
+Once the CAPTCHA token is obtained, the browser is closed and the token is attached to the generation payload sent to Suno's internal API.
+
+### Architecture overview
+
+```
+Your app
+   │  HTTP request
+   ▼
+Suno API  (Next.js, port 3000)
+   │
+   ├─ Clerk auth  ──► auth.suno.com   (session keep-alive)
+   │
+   ├─ hCaptcha flow
+   │     ├─ Playwright (headless browser)
+   │     └─ 2Captcha  (CAPTCHA solver)
+   │
+   └─ Suno Studio API ──► studio-api.prod.suno.com
+```
+
+### Key features
+
+- Full music generation API (`/api/generate`, `/api/custom_generate`)
+- Custom Mode — supply your own lyrics, style tags, and title
+- Automatic session keep-alive
+- Automatic hCaptcha resolution via Playwright + 2Captcha
+- OpenAI-compatible endpoint (`/v1/chat/completions`) for drop-in agent integrations
+- Compatible with GPT Actions, Coze, and LangChain tool schemas
+- One-click Vercel deploy and Docker Compose support
+
+## Prerequisites
+
+Before you can run Suno API you need:
+
+1. **A Suno account** — sign up at [suno.com](https://suno.com). A free account works, though it has daily credit limits.
+2. **A 2Captcha account with balance** — create one at [2captcha.com](https://2captcha.com). Top up your balance and copy your API key. Without this, the automatic CAPTCHA solver cannot function.
+
+<Note>
+  If you are located in Russia or Belarus, use the [ruCaptcha](https://rucaptcha.com) interface instead of 2Captcha. It is the same service but supports payment methods available in those countries.
+</Note>
+
+## License
+
+Suno API is released under the **GNU Lesser General Public License v3.0 or later (LGPL-3.0-or-later)**. See the [LICENSE](https://github.com/gcui-art/suno-api/blob/main/LICENSE) file in the repository for the full text.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Make your first API call in minutes
+  </Card>
+  <Card title="Deployment" icon="server" href="/deployment">
+    Deploy to Vercel, Docker, or run locally
+  </Card>
+</CardGroup>

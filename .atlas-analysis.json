@@ -1,0 +1,103 @@
+{
+  "projectType": "api-service",
+  "projectName": "Suno API",
+  "projectDescription": "An unofficial open-source API wrapper for Suno.ai that lets you programmatically generate music, lyrics, and audio stems, and integrate AI music generation into agents and applications.",
+  "theme": "sequoia",
+  "primaryColor": "#342e7d",
+  "lightColor": "#6c64a0",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "deployment"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/environment-variables",
+              "configuration/authentication",
+              "configuration/captcha"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/generate-music",
+              "guides/custom-mode",
+              "guides/agent-integration"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Music Generation",
+            "pages": [
+              "api-reference/generate",
+              "api-reference/custom-generate",
+              "api-reference/extend-audio",
+              "api-reference/concat"
+            ]
+          },
+          {
+            "group": "Lyrics & Stems",
+            "pages": [
+              "api-reference/generate-lyrics",
+              "api-reference/generate-stems",
+              "api-reference/get-aligned-lyrics"
+            ]
+          },
+          {
+            "group": "Retrieval & Account",
+            "pages": [
+              "api-reference/get",
+              "api-reference/clip",
+              "api-reference/get-limit"
+            ]
+          },
+          {
+            "group": "OpenAI Compatible",
+            "pages": [
+              "api-reference/chat-completions"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Generate music from text prompts via REST API",
+    "Custom Mode: full control over lyrics, style tags, title, and negative tags",
+    "Automatic hCaptcha solving via 2Captcha and Playwright",
+    "OpenAI-compatible /v1/chat/completions endpoint",
+    "Extend existing audio clips",
+    "Separate audio into stems (vocal and instrumental tracks)",
+    "Get word-level lyric alignment timestamps",
+    "One-click deploy to Vercel or Docker",
+    "Auto keep-alive to maintain active Suno session",
+    "Support for multiple Suno accounts via Cookie header override"
+  ],
+  "publicApiSurface": [
+    "POST /api/generate",
+    "POST /api/custom_generate",
+    "POST /api/extend_audio",
+    "POST /api/concat",
+    "POST /api/generate_lyrics",
+    "POST /api/generate_stems",
+    "GET /api/get_aligned_lyrics",
+    "GET /api/get",
+    "GET /api/clip",
+    "GET /api/get_limit",
+    "POST /v1/chat/completions"
+  ]
+}

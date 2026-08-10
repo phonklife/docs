@@ -1,0 +1,225 @@
+---
+title: "Agent integration"
+description: "Use Suno API as a tool inside AI agents and platforms including OpenAI GPTs, Coze, and LangChain."
+---
+
+Suno API is designed to slot into AI agent pipelines. It exposes an OpenAI-compatible chat endpoint, follows REST conventions that work with GPT Actions schemas, and can be wrapped in any tool framework.
+
+## OpenAI-compatible endpoint
+
+`POST /v1/chat/completions` accepts requests in the same format as OpenAI's chat API. The `content` field of the last user message is used as the music generation prompt.
+
+<Warning>
+The endpoint returns a **plain-text string**, not a JSON `ChatCompletion` object. The OpenAI Python and Node.js SDKs will fail to parse the response. Use `requests`, `fetch`, or `curl` to call this endpoint directly.
+</Warning>
+
+```python Python
+import requests
+
+response = requests.post(
+    "http://localhost:3000/v1/chat/completions",
+    json={
+        "model": "chirp-v3-5",
+        "messages": [
+            {
+                "role": "user",
+                "content": "A calm lo-fi hip hop track with rain ambience and soft piano"
+            }
+        ]
+    }
+)
+
+# Response is plain-text Markdown with title, cover image, lyrics, and audio URL
+print(response.text)
+```
+
+The response body is a Markdown-formatted string containing the song title, cover art image, lyrics, and a direct audio URL. See [`POST /v1/chat/completions`](/api-reference/chat-completions) for the full response format.
+
+## Using as a GPT Action
+
+Suno API's REST endpoints can be registered as a **Custom Action** in a GPT inside ChatGPT. The API follows REST conventions and returns JSON, making it straightforward to describe in an OpenAPI schema for GPT Actions.
+
+<Steps>
+  <Step title="Deploy Suno API to a public URL">
+    GPT Actions require a publicly reachable HTTPS endpoint. Deploy to Vercel or another hosting provider first. See the [Deployment guide](/deployment).
+  </Step>
+
+  <Step title="Create a Custom Action in your GPT">
+    In the GPT editor, open **Configure** → **Add actions** and paste in an OpenAPI schema that describes the `/api/generate` and `/api/get` endpoints.
+  </Step>
+
+  <Step title="Test the action">
+    Prompt your GPT with a music request. It will call `/api/generate`, receive clip IDs, and can follow up with `/api/get` to retrieve the audio URL.
+  </Step>
+</Steps>
+
+<Note>
+  A complete GPT Actions integration guide is coming soon. Check the [GitHub repository](https://github.com/gcui-art/suno-api) for the latest updates.
+</Note>
+
+## Using with Coze
+
+Suno API can be registered as a plugin or tool in [Coze](https://www.coze.com). Define the `/api/generate` and `/api/get` endpoints as tool calls in your Coze bot configuration.
+
+<Note>
+  A detailed Coze integration guide is coming soon. Check the [GitHub repository](https://github.com/gcui-art/suno-api) for updates.
+</Note>
+
+## Using with LangChain
+
+Wrap the generate and get endpoints in a LangChain `Tool` to give any LangChain agent the ability to create music.
+
+```python Python
+from langchain.tools import Tool
+import requests
+import time
+
+base_url = "http://localhost:3000"
+
+def generate_music(prompt: str) -> str:
+    response = requests.post(f"{base_url}/api/generate", json={
+        "prompt": prompt,
+        "make_instrumental": False,
+        "wait_audio": True
+    })
+    data = response.json()
+    return f"Generated song: {data[0]['audio_url']}"
+
+music_tool = Tool(
+    name="GenerateMusic",
+    func=generate_music,
+    description="Generate music from a text description using Suno AI"
+)
+```
+
+For async generation (recommended for long-running agent tasks), use `wait_audio: False` and poll in a separate step:
+
+```python Python
+from langchain.tools import Tool
+import requests
+import time
+
+base_url = "http://localhost:3000"
+
+def get_audio_information(audio_ids: str) -> list:
+    url = f"{base_url}/api/get?ids={audio_ids}"
+    response = requests.get(url)
+    return response.json()
+
+def generate_music_async(prompt: str) -> str:
+    """Submit a generation and poll until the audio is ready."""
+    response = requests.post(f"{base_url}/api/generate", json={
+        "prompt": prompt,
+        "make_instrumental": False,
+        "wait_audio": False
+    })
+    data = response.json()
+    ids = f"{data[0]['id']},{data[1]['id']}"
+
+    for _ in range(60):
+        result = get_audio_information(ids)
+        if result[0]["status"] == "streaming":
+            return f"Generated song: {result[0]['audio_url']}"
+        time.sleep(5)
+
+    return "Generation timed out."
+
+music_tool = Tool(
+    name="GenerateMusic",
+    func=generate_music_async,
+    description="Generate music from a text description using Suno AI"
+)
+```
+
+## Multi-account rotation
+
+You can override the default `SUNO_COOKIE` environment variable on a per-request basis by passing a `Cookie` header in your API call. This is useful when you want to distribute requests across multiple free accounts to stay within daily credit limits.
+
+```bash curl
+curl -X POST http://localhost:3000/api/generate \
+  -H "Content-Type: application/json" \
+  -H "Cookie: <cookie-for-account-2>" \
+  -d '{
+    "prompt": "A jazz piano trio playing a slow ballad",
+    "make_instrumental": false,
+    "wait_audio": false
+  }'
+```
+
+```python Python
+import requests
+
+base_url = "http://localhost:3000"
+
+accounts = [
+    "__client=...; ajs_anonymous_id=...",  # account 1 cookie
+    "__client=...; ajs_anonymous_id=...",  # account 2 cookie
+]
+
+def generate_with_account(prompt: str, cookie: str):
+    response = requests.post(
+        f"{base_url}/api/generate",
+        json={"prompt": prompt, "make_instrumental": False, "wait_audio": False},
+        headers={"Content-Type": "application/json", "Cookie": cookie}
+    )
+    return response.json()
+
+# Rotate across accounts
+for i, cookie in enumerate(accounts):
+    data = generate_with_account(f"Song {i}", cookie)
+    print(data)
+```
+
+<Warning>
+  The `Cookie` header must contain a valid `__client` key or Suno API will fall back to the `SUNO_COOKIE` environment variable. An invalid cookie string is silently ignored.
+</Warning>
+
+## Rate limits and credits
+
+Free Suno accounts receive **50 credits per day**. Each generation call (two clips) costs credits. Check your remaining balance with `GET /api/get_limit` before running bulk generations.
+
+```bash curl
+curl http://localhost:3000/api/get_limit
+```
+
+```json
+{
+  "credits_left": 50,
+  "period": "day",
+  "monthly_limit": 50,
+  "monthly_usage": 0
+}
+```
+
+Handle `402` responses in your agent loop to detect exhausted credits:
+
+```python Python
+import requests
+
+base_url = "http://localhost:3000"
+
+def check_credits() -> int:
+    response = requests.get(f"{base_url}/api/get_limit")
+    return response.json()["credits_left"]
+
+def safe_generate(prompt: str) -> dict | None:
+    if check_credits() == 0:
+        print("No credits remaining. Skipping generation.")
+        return None
+
+    response = requests.post(
+        f"{base_url}/api/generate",
+        json={"prompt": prompt, "make_instrumental": False, "wait_audio": False},
+        headers={"Content-Type": "application/json"}
+    )
+
+    if response.status_code == 402:
+        print("Out of credits (402). Top up your Suno account.")
+        return None
+
+    return response.json()
+```
+
+<Tip>
+  When building an agent that generates music in a loop, call `/api/get_limit` at the start of each session and stop early if `credits_left` is 0. This avoids wasted 402 errors mid-run.
+</Tip>

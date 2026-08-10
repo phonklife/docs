@@ -1,0 +1,139 @@
+---
+title: "Get Persona"
+description: "Retrieve paginated information about a Suno persona by ID."
+---
+
+```
+GET /api/persona
+```
+
+Returns detailed information about a Suno persona, including its clips, metadata, and ownership status. Results are paginated.
+
+## Request
+
+### Query parameters
+
+<ParamField query="id" type="string" required>
+  The ID of the persona to retrieve. Returns `400` if missing.
+</ParamField>
+
+<ParamField query="page" type="string">
+  Page number for paginating through the persona's clips. Defaults to `1`.
+</ParamField>
+
+## Response
+
+A persona info object.
+
+<ResponseField name="persona" type="object">
+  The persona data object.
+  <Expandable title="persona fields">
+    <ResponseField name="persona.id" type="string">
+      Unique identifier for the persona.
+    </ResponseField>
+    <ResponseField name="persona.name" type="string">
+      Display name of the persona.
+    </ResponseField>
+    <ResponseField name="persona.description" type="string">
+      Description of the persona.
+    </ResponseField>
+    <ResponseField name="persona.image_s3_id" type="string">
+      S3 image identifier for the persona's avatar.
+    </ResponseField>
+    <ResponseField name="persona.root_clip_id" type="string">
+      ID of the persona's root/seed clip.
+    </ResponseField>
+    <ResponseField name="persona.user_display_name" type="string">
+      Display name of the user who owns the persona.
+    </ResponseField>
+    <ResponseField name="persona.user_handle" type="string">
+      Handle (username) of the persona owner.
+    </ResponseField>
+    <ResponseField name="persona.user_image_url" type="string">
+      URL of the persona owner's profile image.
+    </ResponseField>
+    <ResponseField name="persona.is_suno_persona" type="boolean">
+      Whether this is an official Suno persona.
+    </ResponseField>
+    <ResponseField name="persona.is_trashed" type="boolean">
+      Whether the persona has been deleted.
+    </ResponseField>
+    <ResponseField name="persona.is_owned" type="boolean">
+      Whether the authenticated user owns this persona.
+    </ResponseField>
+    <ResponseField name="persona.is_public" type="boolean">
+      Whether the persona is publicly visible.
+    </ResponseField>
+    <ResponseField name="persona.is_public_approved" type="boolean">
+      Whether the persona has been approved for public listing.
+    </ResponseField>
+    <ResponseField name="persona.is_loved" type="boolean">
+      Whether the authenticated user has liked this persona.
+    </ResponseField>
+    <ResponseField name="persona.upvote_count" type="number">
+      Total number of upvotes the persona has received.
+    </ResponseField>
+    <ResponseField name="persona.clip_count" type="number">
+      Total number of clips associated with the persona.
+    </ResponseField>
+    <ResponseField name="persona.persona_clips" type="array">
+      Array of clip objects associated with this persona on the current page.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="total_results" type="number">
+  Total number of clips associated with the persona across all pages.
+</ResponseField>
+
+<ResponseField name="current_page" type="number">
+  The current page number returned.
+</ResponseField>
+
+<ResponseField name="is_following" type="boolean">
+  Whether the authenticated user is following this persona.
+</ResponseField>
+
+## Error responses
+
+| Status | Meaning |
+|--------|---------|
+| `400`  | `id` parameter is missing |
+| `500`  | Internal server error |
+
+## Examples
+
+### Request
+
+```bash
+curl "http://localhost:3000/api/persona?id=abc123&page=1"
+```
+
+### Response
+
+```json
+{
+  "persona": {
+    "id": "abc123",
+    "name": "RockLegend",
+    "description": "A persona specializing in classic rock styles.",
+    "image_s3_id": "persona_images/abc123.jpg",
+    "root_clip_id": "clip-xyz-001",
+    "user_display_name": "Jane Smith",
+    "user_handle": "janesmith",
+    "user_image_url": "https://cdn1.suno.ai/avatars/janesmith.jpg",
+    "is_suno_persona": false,
+    "is_trashed": false,
+    "is_owned": false,
+    "is_public": true,
+    "is_public_approved": true,
+    "is_loved": false,
+    "upvote_count": 142,
+    "clip_count": 27,
+    "persona_clips": []
+  },
+  "total_results": 27,
+  "current_page": 1,
+  "is_following": false
+}
+```

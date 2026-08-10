@@ -1,0 +1,121 @@
+---
+title: "Get Aligned Lyrics"
+description: "Retrieve word-level timestamps that align the lyrics of a song to its audio."
+---
+
+```
+GET /api/get_aligned_lyrics
+```
+
+Returns a time-aligned word list for a song — each word in the lyrics paired with the second it starts and ends in the audio. This data is useful for:
+
+- **Subtitle and caption generation** — display lyrics in sync with playback
+- **Karaoke displays** — highlight each word as it is sung
+- **Music video sync** — trigger visual effects at precise lyric moments
+- **Accessibility** — provide searchable, timed transcripts
+
+<Note>
+The server reads your Suno session from the `SUNO_COOKIE` environment variable. Pass a `Cookie` header containing a valid `__client` value to use a different Suno account on a per-request basis.
+</Note>
+
+<Warning>
+`song_id` is required. The server returns `400 Bad Request` if it is missing.
+</Warning>
+
+## Query parameters
+
+<ParamField query="song_id" type="string" required>
+  The ID of the song whose lyric alignment you want to retrieve. The song must already exist in your Suno account and have been fully generated.
+</ParamField>
+
+## Response
+
+An array of word timestamp objects, one entry per word in the lyrics, in order of appearance.
+
+<ResponseField name="[].word" type="string">
+  The lyric word as it appears in the song.
+</ResponseField>
+
+<ResponseField name="[].start_s" type="number">
+  The time in seconds at which this word begins in the audio.
+</ResponseField>
+
+<ResponseField name="[].end_s" type="number">
+  The time in seconds at which this word ends in the audio.
+</ResponseField>
+
+<ResponseField name="[].success" type="boolean">
+  Whether alignment succeeded for this word. Words with `false` may have unreliable timestamps.
+</ResponseField>
+
+<ResponseField name="[].p_align" type="number">
+  Alignment confidence score from `0` to `1`. Higher values indicate greater certainty that the timestamp is accurate.
+</ResponseField>
+
+## Error responses
+
+| Status | Meaning |
+|--------|---------|
+| `400`  | `song_id` is missing |
+| `500`  | Internal server error |
+
+## Examples
+
+### Request
+
+```bash
+curl "http://localhost:3000/api/get_aligned_lyrics?song_id=c3d4e5f6-a7b8-9012-cdef-123456789012"
+```
+
+### Response
+
+```json
+[
+  {
+    "word": "The",
+    "start_s": 4.12,
+    "end_s": 4.28,
+    "success": true,
+    "p_align": 0.97
+  },
+  {
+    "word": "window",
+    "start_s": 4.29,
+    "end_s": 4.71,
+    "success": true,
+    "p_align": 0.95
+  },
+  {
+    "word": "fogs",
+    "start_s": 4.72,
+    "end_s": 5.01,
+    "success": true,
+    "p_align": 0.91
+  },
+  {
+    "word": "with",
+    "start_s": 5.02,
+    "end_s": 5.18,
+    "success": true,
+    "p_align": 0.88
+  },
+  {
+    "word": "every",
+    "start_s": 5.19,
+    "end_s": 5.54,
+    "success": true,
+    "p_align": 0.93
+  },
+  {
+    "word": "breath",
+    "start_s": 5.55,
+    "end_s": 5.90,
+    "success": true,
+    "p_align": 0.96
+  }
+]
+```
+
+<Tip>
+Filter out words where `success` is `false` or `p_align` is below a threshold (e.g. `0.5`) before using timestamps in production to avoid visible sync errors.
+</Tip>

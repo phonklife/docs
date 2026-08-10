@@ -1,0 +1,167 @@
+---
+title: "Generate"
+description: "Generate two songs from a text description using Suno's AI."
+---
+
+```
+POST /api/generate
+```
+
+Submits a text description to Suno and returns two generated audio clips. By default the response is returned immediately with clips in a `submitted` or `queued` state. Set `wait_audio: true` to block until audio is fully ready (up to 100 seconds).
+
+<Note>
+The server reads your Suno session from the `SUNO_COOKIE` environment variable. Pass a `Cookie` header containing a valid `__client` value to use a different Suno account on a per-request basis.
+</Note>
+
+## Request body
+
+<ParamField body="prompt" type="string" required>
+  A text description of the music to generate. Suno uses this as a `gpt_description_prompt` and will write lyrics automatically.
+</ParamField>
+
+<ParamField body="make_instrumental" type="boolean" default="false">
+  When `true`, generates a song without vocals.
+</ParamField>
+
+<ParamField body="model" type="string" default="chirp-v3-5">
+  The Suno model version to use for generation (e.g. `chirp-v3-5`, `chirp-v4`).
+</ParamField>
+
+<ParamField body="wait_audio" type="boolean" default="false">
+  When `true`, the request polls Suno until both clips reach `streaming` or `complete` status before returning. The poll window is up to **100 seconds**. When `false`, clips are returned immediately in `submitted` / `queued` state and you must poll [`GET /api/get`](/api-reference/get) for the final URLs.
+</ParamField>
+
+## Response
+
+An array of **two** `AudioInfo` objects.
+
+<ResponseField name="[].id" type="string">
+  Unique identifier for the generated audio clip.
+</ResponseField>
+
+<ResponseField name="[].title" type="string">
+  Title assigned to the clip by Suno.
+</ResponseField>
+
+<ResponseField name="[].image_url" type="string">
+  URL of the cover art image for the clip.
+</ResponseField>
+
+<ResponseField name="[].lyric" type="string">
+  The lyrics used in the generated audio.
+</ResponseField>
+
+<ResponseField name="[].audio_url" type="string">
+  URL of the generated audio file. May be empty until `status` is `streaming` or `complete`.
+</ResponseField>
+
+<ResponseField name="[].video_url" type="string">
+  URL of the generated video file. May be empty until generation is complete.
+</ResponseField>
+
+<ResponseField name="[].created_at" type="string">
+  ISO 8601 timestamp of when the clip was created.
+</ResponseField>
+
+<ResponseField name="[].model_name" type="string">
+  The model used to generate this clip (e.g. `chirp-v3-5`).
+</ResponseField>
+
+<ResponseField name="[].gpt_description_prompt" type="string">
+  The original text prompt submitted to Suno's description system.
+</ResponseField>
+
+<ResponseField name="[].prompt" type="string">
+  The actual lyrics prompt used during generation (may differ from the input `prompt` after GPT expansion).
+</ResponseField>
+
+<ResponseField name="[].status" type="string">
+  Current generation status. One of: `submitted`, `queued`, `streaming`, `complete`, `error`.
+</ResponseField>
+
+<ResponseField name="[].type" type="string">
+  Internal clip type as reported by Suno.
+</ResponseField>
+
+<ResponseField name="[].tags" type="string">
+  Music style tags associated with the clip.
+</ResponseField>
+
+<ResponseField name="[].negative_tags" type="string">
+  Music style tags that were excluded during generation.
+</ResponseField>
+
+<ResponseField name="[].duration" type="string">
+  Duration of the audio clip in seconds.
+</ResponseField>
+
+<ResponseField name="[].error_message" type="string">
+  Human-readable error description. Present only when `status` is `error`.
+</ResponseField>
+
+## Error responses
+
+| Status | Meaning |
+|--------|---------|
+| `400`  | Bad request (e.g. missing required field) |
+| `402`  | Out of Suno credits — payment required |
+| `500`  | Internal server error |
+| `503`  | Network error connecting to Suno |
+
+## Examples
+
+### Request
+
+```bash
+curl -X POST http://localhost:3000/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "An upbeat electronic track with driving synths and a hopeful melody",
+    "make_instrumental": false,
+    "model": "chirp-v3-5",
+    "wait_audio": true
+  }'
+```
+
+### Response
+
+```json
+[
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "title": "Hopeful Horizons",
+    "image_url": "https://cdn1.suno.ai/image_a1b2c3d4-e5f6-7890-abcd-ef1234567890.jpeg",
+    "lyric": "[Verse]\nRising up through the morning light\nEvery dream is worth the fight\n[Chorus]\nHopeful horizons calling me home",
+    "audio_url": "https://cdn1.suno.ai/a1b2c3d4-e5f6-7890-abcd-ef1234567890.mp3",
+    "video_url": "https://cdn1.suno.ai/a1b2c3d4-e5f6-7890-abcd-ef1234567890.mp4",
+    "created_at": "2024-01-15T10:23:45.000Z",
+    "model_name": "chirp-v3-5",
+    "gpt_description_prompt": "An upbeat electronic track with driving synths and a hopeful melody",
+    "prompt": "[Verse]\nRising up through the morning light\nEvery dream is worth the fight\n[Chorus]\nHopeful horizons calling me home",
+    "status": "complete",
+    "type": "gen",
+    "tags": "electronic, synth, upbeat",
+    "negative_tags": "",
+    "duration": "120.5",
+    "error_message": null
+  },
+  {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "title": "Electric Dawn",
+    "image_url": "https://cdn1.suno.ai/image_b2c3d4e5-f6a7-8901-bcde-f12345678901.jpeg",
+    "lyric": "[Verse]\nNeon lights paint the midnight sky\nWe were born to reach up high\n[Chorus]\nElectric dawn breaking free",
+    "audio_url": "https://cdn1.suno.ai/b2c3d4e5-f6a7-8901-bcde-f12345678901.mp3",
+    "video_url": "https://cdn1.suno.ai/b2c3d4e5-f6a7-8901-bcde-f12345678901.mp4",
+    "created_at": "2024-01-15T10:23:45.000Z",
+    "model_name": "chirp-v3-5",
+    "gpt_description_prompt": "An upbeat electronic track with driving synths and a hopeful melody",
+    "prompt": "[Verse]\nNeon lights paint the midnight sky\nWe were born to reach up high\n[Chorus]\nElectric dawn breaking free",
+    "status": "complete",
+    "type": "gen",
+    "tags": "electronic, synth, upbeat",
+    "negative_tags": "",
+    "duration": "115.2",
+    "error_message": null
+  }
+]
+```

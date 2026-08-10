@@ -1,0 +1,97 @@
+---
+title: "Authentication"
+description: "How Suno API authenticates with Suno.com using your browser session cookie."
+---
+
+Suno API authenticates with Suno's backend by replaying your browser session. There is no official API key — instead, you provide the full `Cookie` header from a logged-in browser session, and the API handles the rest automatically.
+
+## How it works
+
+On startup, and before each API operation, Suno API performs the following sequence against Suno's Clerk-based auth infrastructure:
+
+<Steps>
+  <Step title="Parse the cookie">
+    The `SUNO_COOKIE` value (or per-request `Cookie` header) is parsed into individual cookie fields. The `__client` value is extracted for use as a Clerk `Authorization` header, and `ajs_anonymous_id` is used as the device identifier (falling back to a random UUID if not present).
+  </Step>
+  <Step title="Get the active session ID">
+    A GET request is made to Clerk's `/v1/client` endpoint:
+
+    ```
+    GET https://auth.suno.com/v1/client?__clerk_api_version=2025-11-10&_clerk_js_version=5.117.0
+    Authorization: <__client cookie value>
+    ```
+
+    The `last_active_session_id` field from the response is saved for the next step.
+  </Step>
+  <Step title="Exchange for a JWT bearer token">
+    A POST request is made to Clerk's token endpoint using the session ID:
+
+    ```
+    POST https://auth.suno.com/v1/client/sessions/{session_id}/tokens
+    Authorization: <__client cookie value>
+    ```
+
+    The returned `jwt` field becomes the bearer token attached to all subsequent Suno API calls.
+  </Step>
+  <Step title="Refresh before every operation (keepAlive)">
+    Before every music generation or API call, `keepAlive()` is called to refresh the JWT. This keeps the session active indefinitely as long as the underlying cookie remains valid.
+  </Step>
+</Steps>
+
+## How to get your cookie
+
+<Steps>
+  <Step title="Open Suno in your browser">
+    Navigate to [suno.com/create](https://suno.com/create) while logged in to your Suno account.
+  </Step>
+  <Step title="Open DevTools">
+    Press `F12` (or `Cmd+Option+I` on macOS) to open the browser developer tools.
+  </Step>
+  <Step title="Go to the Network tab">
+    Click the **Network** tab in DevTools.
+  </Step>
+  <Step title="Refresh the page">
+    Press `F5` or `Cmd+R` to reload the page so network requests are captured.
+  </Step>
+  <Step title="Find a request with the Clerk API version parameter">
+    In the filter box, search for `__clerk_api_version`. Click any matching request.
+  </Step>
+  <Step title="Copy the Cookie header">
+    In the **Headers** tab of the selected request, scroll to the **Request Headers** section. Find `Cookie`, hover over the value, and copy the entire string.
+  </Step>
+  <Step title="Set the environment variable">
+    Paste the copied value as your `SUNO_COOKIE` in your `.env` file or deployment environment.
+  </Step>
+</Steps>
+
+## Required cookie fields
+
+The cookie string must contain at least the following fields for authentication to succeed:
+
+| Field | Purpose |
+|---|---|
+| `__client` | Clerk client token. Used as the `Authorization` header when calling Clerk endpoints to get and refresh the session JWT. |
+| `ajs_anonymous_id` | Segment anonymous device identifier. Used as the `Device-Id` header on all Suno API requests. If absent, a random UUID is generated. |
+
+If `__client` is missing, the API will throw:
+
+```
+Failed to get session id, you may need to update the SUNO_COOKIE
+```
+
+## Per-request cookie override
+
+Every HTTP request to your Suno API instance can include a `Cookie` header to authenticate as a different Suno account:
+
+```bash
+curl -X POST http://localhost:3000/api/generate \
+  -H "Cookie: __client=<token>; ajs_anonymous_id=<id>; ..." \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "an upbeat jazz track", "wait_audio": false}'
+```
+
+The override is only applied if the supplied `Cookie` value contains `__client`. Otherwise, the `SUNO_COOKIE` environment variable is used. Each unique cookie string results in a separate cached `SunoApi` instance.
+
+<Note>
+Cookies expire periodically. If you start receiving authentication errors, return to the browser, copy a fresh `Cookie` header, and update `SUNO_COOKIE`. There is no automatic cookie refresh — the session JWT is refreshed automatically, but the underlying Clerk client cookie must be updated manually when it expires.
+</Note>

@@ -1,0 +1,160 @@
+---
+title: "Get Songs"
+description: "Retrieve audio info for one or more songs by ID, or fetch your full song library."
+---
+
+## `GET /api/get`
+
+Returns an array of `AudioInfo` objects from Suno's `/api/feed/v2` endpoint. Pass a list of IDs to look up specific songs, or omit `ids` to return your entire song library. This is the primary endpoint for polling generation status after calling `/api/generate`.
+
+## Request
+
+### Query Parameters
+
+<ParamField query="ids" type="string">
+  Comma-separated list of song IDs to retrieve. If omitted, returns all songs in your library.
+
+  **Example:** `id1,id2,id3`
+</ParamField>
+
+<ParamField query="page" type="string">
+  Page number for paginating through results. Applies to both filtered and unfiltered requests.
+
+  **Example:** `2`
+</ParamField>
+
+## Response
+
+An array of `AudioInfo` objects.
+
+<ResponseField name="id" type="string" required>
+  Unique identifier for the audio clip.
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Title of the song.
+</ResponseField>
+
+<ResponseField name="image_url" type="string">
+  URL of the cover image associated with the song.
+</ResponseField>
+
+<ResponseField name="lyric" type="string">
+  Processed lyrics text. Empty lines are stripped from the original prompt.
+</ResponseField>
+
+<ResponseField name="audio_url" type="string">
+  URL of the generated audio file.
+</ResponseField>
+
+<ResponseField name="video_url" type="string">
+  URL of the generated video file.
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 timestamp of when the clip was created.
+</ResponseField>
+
+<ResponseField name="model_name" type="string" required>
+  Name of the Suno model used to generate the clip (e.g., `chirp-v3-5`).
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Current generation status. Possible values:
+
+  | Value | Meaning |
+  |---|---|
+  | `submitted` | Request received, not yet queued |
+  | `queued` | Waiting in the generation queue |
+  | `streaming` | Audio is being generated and is partially available |
+  | `complete` | Generation finished successfully |
+  | `error` | Generation failed — check `error_message` |
+</ResponseField>
+
+<ResponseField name="gpt_description_prompt" type="string">
+  The natural-language description prompt passed to GPT for non-custom generations.
+</ResponseField>
+
+<ResponseField name="prompt" type="string">
+  The raw prompt / lyrics text used during generation.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Internal clip type from Suno's metadata.
+</ResponseField>
+
+<ResponseField name="tags" type="string">
+  Genre and style tags applied to the song.
+</ResponseField>
+
+<ResponseField name="duration" type="string">
+  Duration of the audio clip.
+</ResponseField>
+
+<ResponseField name="error_message" type="string">
+  Human-readable error description when `status` is `error`, otherwise absent.
+</ResponseField>
+
+## Error responses
+
+| Status | Meaning |
+|--------|---------|
+| `500`  | Internal server error |
+
+## Polling for generation status
+
+<Tip>
+  After calling `/api/generate` or `/api/custom_generate`, poll this endpoint every 3–5 seconds until `status` is `"streaming"` or `"complete"`. This is the same logic the SDK uses internally when `wait_audio` is `true`.
+</Tip>
+
+A generation is considered done when **all** returned clips satisfy:
+
+```
+status === "streaming" || status === "complete"
+```
+
+If all clips reach `status === "error"`, the generation has failed.
+
+## Examples
+
+### Fetch specific songs by ID
+
+```bash
+curl "http://localhost:3000/api/get?ids=abc123,def456"
+```
+
+### Fetch all songs (no filter)
+
+```bash
+curl "http://localhost:3000/api/get"
+```
+
+### Paginate through your library
+
+```bash
+curl "http://localhost:3000/api/get?page=2"
+```
+
+### Example response
+
+```json
+[
+  {
+    "id": "abc123",
+    "title": "Midnight Drive",
+    "image_url": "https://cdn1.suno.ai/image_abc123.png",
+    "lyric": "Neon lights blur past\nThe city never sleeps",
+    "audio_url": "https://cdn1.suno.ai/abc123.mp3",
+    "video_url": "https://cdn1.suno.ai/abc123.mp4",
+    "created_at": "2024-03-15T22:10:00.000Z",
+    "model_name": "chirp-v3-5",
+    "status": "complete",
+    "gpt_description_prompt": "a moody synthwave track about driving at night",
+    "prompt": "Neon lights blur past\nThe city never sleeps",
+    "type": "gen",
+    "tags": "synthwave, moody, electronic",
+    "duration": "180",
+    "error_message": null
+  }
+]
+```

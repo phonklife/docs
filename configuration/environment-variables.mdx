@@ -1,0 +1,34 @@
+---
+title: "Environment variables"
+description: "All environment variables available to configure Suno API."
+---
+
+Suno API is configured entirely through environment variables. Set these in a `.env` file when running locally, or in your deployment platform's environment settings (e.g. the Vercel dashboard).
+
+## Variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `SUNO_COOKIE` | Yes | — | The full `Cookie` header value copied from your Suno.com browser session. Must include the `__client` token for Clerk authentication. |
+| `TWOCAPTCHA_KEY` | Yes | — | Your 2Captcha API key, used to solve hCaptcha challenges automatically before each music generation. |
+| `BROWSER` | No | `chromium` | Browser used by Playwright when solving CAPTCHAs. Only `chromium` and `firefox` are supported. `chromium` is strongly recommended. |
+| `BROWSER_GHOST_CURSOR` | No | `false` | Enable smooth mouse movement simulation via `ghost-cursor-playwright`. Does not appear to reduce CAPTCHA frequency. Retained for future testing. |
+| `BROWSER_LOCALE` | No | `en` | Browser locale passed to Playwright and sent to 2Captcha workers. Using `en` or `ru` is recommended — those locales have the most available workers on 2Captcha. |
+| `BROWSER_HEADLESS` | No | `true` | Run the browser without a visible window. Set to `false` only for local debugging. |
+| `BROWSER_DISABLE_GPU` | No | `false` | Disable GPU acceleration in the browser. Recommended when running inside Docker containers. |
+
+## Example `.env`
+
+```bash .env
+SUNO_COOKIE=__client=<token>; ajs_anonymous_id=<id>; ...
+TWOCAPTCHA_KEY=your_api_key_here
+BROWSER=chromium
+BROWSER_GHOST_CURSOR=false
+BROWSER_LOCALE=en
+BROWSER_HEADLESS=true
+BROWSER_DISABLE_GPU=false
+```
+
+<Note>
+You can override `SUNO_COOKIE` on a per-request basis by passing a `Cookie` header in your HTTP request. The header value must contain a `__client` token, otherwise the environment variable is used as a fallback. This is useful when running multiple Suno accounts through the same API instance.
+</Note>

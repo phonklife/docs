@@ -1,0 +1,142 @@
+---
+title: "Concat"
+description: "Concatenate an extended audio clip with its parent to produce a single complete song."
+---
+
+```
+POST /api/concat
+```
+
+Calls Suno's concatenation endpoint to merge a clip that was created via [`/api/extend_audio`](/api-reference/extend-audio) with its parent clip, producing one continuous audio file.
+
+## Typical workflow
+
+1. Generate a base clip with [`/api/generate`](/api-reference/generate) or [`/api/custom_generate`](/api-reference/custom-generate).
+2. Extend the clip one or more times with [`/api/extend_audio`](/api-reference/extend-audio), noting the `id` of each new clip.
+3. Call `/api/concat` with the **final extension clip's ID** to stitch all segments together into a single song.
+
+<Note>
+Concatenation is handled by Suno's backend. The returned object represents the fully assembled song; its `audio_url` points to the merged file.
+</Note>
+
+<Warning>
+`clip_id` is required. The server returns `400 Bad Request` if it is missing.
+</Warning>
+
+## Request body
+
+<ParamField body="clip_id" type="string" required>
+  The ID of the extension clip to concatenate. Suno traces the clip's lineage and merges it with all parent segments automatically.
+</ParamField>
+
+## Response
+
+A **single** `AudioInfo` object representing the fully concatenated song — not an array.
+
+<ResponseField name="id" type="string">
+  Unique identifier for the concatenated audio clip.
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Title of the concatenated song.
+</ResponseField>
+
+<ResponseField name="image_url" type="string">
+  URL of the cover art image.
+</ResponseField>
+
+<ResponseField name="lyric" type="string">
+  Full lyrics of the concatenated song.
+</ResponseField>
+
+<ResponseField name="audio_url" type="string">
+  URL of the complete merged audio file.
+</ResponseField>
+
+<ResponseField name="video_url" type="string">
+  URL of the complete merged video file.
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 timestamp of when the concatenated clip was created.
+</ResponseField>
+
+<ResponseField name="model_name" type="string">
+  The model used to generate the original clip.
+</ResponseField>
+
+<ResponseField name="gpt_description_prompt" type="string">
+  GPT description prompt from the original generation.
+</ResponseField>
+
+<ResponseField name="prompt" type="string">
+  The lyrics prompt from the clip metadata.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Status of the concatenated clip: `submitted`, `queued`, `streaming`, `complete`, or `error`.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Internal clip type as reported by Suno.
+</ResponseField>
+
+<ResponseField name="tags" type="string">
+  Style tags associated with the clip.
+</ResponseField>
+
+<ResponseField name="negative_tags" type="string">
+  Negative style tags associated with the clip.
+</ResponseField>
+
+<ResponseField name="duration" type="string">
+  Total duration of the concatenated audio in seconds.
+</ResponseField>
+
+<ResponseField name="error_message" type="string">
+  Error description when `status` is `error`.
+</ResponseField>
+
+## Error responses
+
+| Status | Meaning |
+|--------|---------|
+| `400`  | `clip_id` is missing |
+| `402`  | Out of Suno credits — payment required |
+| `500`  | Internal server error |
+| `503`  | Network error connecting to Suno |
+
+## Examples
+
+### Request
+
+```bash
+curl -X POST http://localhost:3000/api/concat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clip_id": "e5f6a7b8-c9d0-1234-efab-345678901234"
+  }'
+```
+
+### Response
+
+```json
+{
+  "id": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+  "title": "Ocean Wanderer (Full)",
+  "image_url": "https://cdn1.suno.ai/image_f6a7b8c9-d0e1-2345-fabc-456789012345.jpeg",
+  "lyric": "[Verse]\nI walk along the shore at dawn\nThe salt wind pulls me further on\n[Chorus]\nOcean wanderer, lost and free\nThe sea's the only home for me\n[Bridge]\nStars above guide me through the night\nEvery storm leads to clearer light\n[Outro]\nOcean wanderer finding her way home",
+  "audio_url": "https://cdn1.suno.ai/f6a7b8c9-d0e1-2345-fabc-456789012345.mp3",
+  "video_url": "https://cdn1.suno.ai/f6a7b8c9-d0e1-2345-fabc-456789012345.mp4",
+  "created_at": "2024-01-15T11:45:00.000Z",
+  "model_name": "chirp-v3-5",
+  "gpt_description_prompt": "",
+  "prompt": "[Verse]\nI walk along the shore at dawn...",
+  "status": "complete",
+  "type": "concat",
+  "tags": "folk, acoustic guitar, female vocalist",
+  "negative_tags": "heavy metal, electronic",
+  "duration": "227.3",
+  "error_message": null
+}
+```

@@ -1,0 +1,79 @@
+---
+title: "Generate Lyrics"
+description: "Generate lyrics from a text prompt, without creating audio."
+---
+
+```
+POST /api/generate_lyrics
+```
+
+Submits a prompt to Suno's lyrics generation service and polls until the lyrics are complete. Only lyrics are returned — no audio is created. Use the result with [`/api/custom_generate`](/api-reference/custom-generate) to turn the lyrics into a song.
+
+<Note>
+The server reads your Suno session from the `SUNO_COOKIE` environment variable. Pass a `Cookie` header containing a valid `__client` value to use a different Suno account on a per-request basis.
+</Note>
+
+<Tip>
+Lyrics generation is typically fast (a few seconds). The server polls Suno automatically and only returns once `status` is `"complete"`, so you do not need to poll yourself.
+</Tip>
+
+## Request body
+
+<ParamField body="prompt" type="string" required>
+  A description or theme for the lyrics. Suno uses this to write verses, choruses, and structure. For example: `"A melancholic song about missing someone in winter"`.
+</ParamField>
+
+## Response
+
+A single lyrics generation result object returned directly from Suno's internal lyrics API.
+
+<Note>
+The server returns Suno's raw lyrics object without normalization. Field names reflect Suno's internal API schema.
+</Note>
+
+<ResponseField name="id" type="string">
+  The generation ID assigned by Suno.
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  A title Suno generated for the lyrics.
+</ResponseField>
+
+<ResponseField name="text" type="string">
+  The full generated lyrics text, including section markers such as `[Verse]`, `[Chorus]`, and `[Outro]`.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Generation status. The server polls until this is `"complete"` before returning, so the response always has `status: "complete"`.
+</ResponseField>
+
+## Error responses
+
+| Status | Meaning |
+|--------|---------|
+| `402`  | Out of Suno credits — payment required |
+| `500`  | Internal server error |
+| `503`  | Network error connecting to Suno |
+
+## Examples
+
+### Request
+
+```bash
+curl -X POST http://localhost:3000/api/generate_lyrics \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A melancholic song about missing someone in winter"
+  }'
+```
+
+### Response
+
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "title": "Frost and Absence",
+  "text": "[Verse 1]\nThe window fogs with every breath I take\nYour empty chair, a ghost I can't escape\nThe radiator ticks but can't warm me\nSince winter came and took you from my reach\n\n[Chorus]\nI trace your name in frost upon the glass\nA cold reminder of what used to pass\nBetween your hands and mine in warmer days\nNow I'm just burning through the winter haze\n\n[Verse 2]\nThe kettle sings a tune we used to know\nTwo cups still waiting in a crooked row\nI pour one out and watch the steam rise thin\nAnd wonder when you'll ever come back in\n\n[Chorus]\nI trace your name in frost upon the glass\nA cold reminder of what used to pass\nBetween your hands and mine in warmer days\nNow I'm just burning through the winter haze\n\n[Outro]\nMaybe spring will bring you back to me\nUntil then I'll wait and let the cold winds be",
+  "status": "complete"
+}
+```

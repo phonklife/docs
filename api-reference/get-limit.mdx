@@ -1,0 +1,75 @@
+---
+title: "Get Credit Limit"
+description: "Check your remaining Suno credits and billing usage for the current period."
+---
+
+## `GET /api/get_limit`
+
+Returns your current Suno account credit balance and billing usage by querying Suno's `/api/billing/info/` endpoint.
+
+<Tip>
+  Check your credits before calling `/api/generate`. Each generation produces 2 songs and costs **10 credits**. If you have fewer than 10 credits remaining, the generation request will fail with a `402` error.
+</Tip>
+
+## Request
+
+This endpoint takes no parameters.
+
+## Response
+
+<ResponseField name="credits_left" type="number" required>
+  Number of credits remaining in the current billing period.
+</ResponseField>
+
+<ResponseField name="period" type="string" required>
+  The active billing period. Free accounts use `"day"` — credits reset daily.
+</ResponseField>
+
+<ResponseField name="monthly_limit" type="number" required>
+  Total credits allocated for the month.
+</ResponseField>
+
+<ResponseField name="monthly_usage" type="number" required>
+  Credits consumed so far this month.
+</ResponseField>
+
+## Credit consumption
+
+| Action | Credits used |
+|---|---|
+| One generation request (`/api/generate`, `/api/custom_generate`) | 10 credits (2 songs × 5 credits each) |
+| Free account daily allowance | 50 credits |
+
+<Note>
+  Free Suno accounts receive 50 credits per day. Paid plans have higher monthly limits. When `credits_left` drops below 10, avoid calling generate endpoints to prevent `402 Payment Required` errors.
+</Note>
+
+## Examples
+
+### Check your credit balance
+
+```bash
+curl "http://localhost:3000/api/get_limit"
+```
+
+### Example response
+
+```json
+{
+  "credits_left": 50,
+  "period": "day",
+  "monthly_limit": 50,
+  "monthly_usage": 0
+}
+```
+
+### Example response after two generations
+
+```json
+{
+  "credits_left": 30,
+  "period": "day",
+  "monthly_limit": 50,
+  "monthly_usage": 20
+}
+```

@@ -1,0 +1,156 @@
+---
+title: "CAPTCHA solving"
+description: "How Suno API automatically solves hCaptcha challenges using 2Captcha and Playwright."
+---
+
+Suno requires an hCaptcha token in every music generation request. Suno API solves these challenges automatically using [2Captcha](https://2captcha.com) (a paid human-worker CAPTCHA solving service) combined with a headless [Playwright](https://playwright.dev) browser.
+
+## Why CAPTCHA solving is needed
+
+Before Suno accepts a generation request, it verifies that the request comes from a real browser session that has passed an hCaptcha challenge. There is currently no way to bypass this requirement without completing the challenge. 2Captcha routes screenshots of the challenge to human workers who click the correct tiles and return coordinates.
+
+## Setting up 2Captcha
+
+<Steps>
+  <Step title="Create an account">
+    Register at [2captcha.com/auth/register](https://2captcha.com/auth/register) as a customer.
+
+    <Note>
+      If you are located in Russia or Belarus, use [ruCaptcha](https://rucaptcha.com) instead. It is the same service with the same API, but supports payment methods available in those countries.
+    </Note>
+  </Step>
+  <Step title="Top up your balance">
+    Go to [2captcha.com/pay](https://2captcha.com/pay) and add funds. CAPTCHA solves are billed per solve — expect approximately **$0.001–$0.003 per challenge**. Costs vary based on challenge difficulty and worker availability.
+  </Step>
+  <Step title="Get your API key">
+    Retrieve your API key from [2captcha.com/enterpage#recognition](https://2captcha.com/enterpage#recognition) and set it as `TWOCAPTCHA_KEY` in your environment.
+  </Step>
+</Steps>
+
+## How CAPTCHA solving works
+
+The following sequence runs automatically before each call to `/api/generate/v2/`:
+
+<Steps>
+  <Step title="Check if CAPTCHA is required">
+    The API sends a POST request to Suno's check endpoint:
+
+    ```http
+    POST https://studio-api.prod.suno.com/api/c/check
+    Content-Type: application/json
+
+    {"ctype": "generation"}
+    ```
+
+    If the `required` field in the response is `false`, CAPTCHA solving is skipped and `null` is passed as the token.
+  </Step>
+  <Step title="Launch a headless browser">
+    A Playwright browser (chromium by default, or firefox if `BROWSER=firefox`) is launched using [rebrowser-playwright-core](https://github.com/rebrowser/rebrowser-patches) with anti-bot detection flags:
+
+    ```
+    --disable-blink-features=AutomationControlled
+    --disable-web-security
+    --no-sandbox
+    --disable-dev-shm-usage
+    --disable-features=site-per-process
+    --disable-features=IsolateOrigins
+    --disable-extensions
+    --disable-infobars
+    ```
+
+    The browser context is configured with the same `userAgent` (randomised as a macOS user agent), `locale`, and all session cookies — including the current JWT `__session` token — so that Suno sees an authenticated browser.
+  </Step>
+  <Step title="Navigate to suno.com/create and trigger the challenge">
+    The browser opens `https://suno.com/create` and waits for the song list API call to confirm the page is ready. Any popup dialogs are dismissed. A dummy prompt (`Lorem ipsum`) is typed into the composition textarea, then the **Create** button is clicked to trigger the hCaptcha iframe.
+  </Step>
+  <Step title="Screenshot the challenge and send to 2Captcha">
+    The `.challenge-container` element inside the hCaptcha iframe is screenshotted and sent to 2Captcha via the `coordinates` method of the [`@2captcha/captcha-solver`](https://www.npmjs.com/package/@2captcha/captcha-solver) package:
+
+    ```typescript
+    const payload: paramsCoordinates = {
+      body: (await challenge.screenshot({ timeout: 5000 })).toString('base64'),
+      lang: process.env.BROWSER_LOCALE
+    };
+    captcha = await this.solver.coordinates(payload);
+    ```
+
+    If 2Captcha returns an error, the send is retried up to **3 times** before the error is propagated.
+  </Step>
+  <Step title="Handle drag or click challenges">
+    2Captcha workers return a list of coordinate objects. The challenge type is detected by checking whether the prompt text contains the word `drag`:
+
+    **Click challenges** — Playwright clicks each returned `(x, y)` coordinate within the challenge container:
+
+    ```typescript
+    for (const data of captcha.data) {
+      await this.click(challenge, { x: +data.x, y: +data.y });
+    }
+    ```
+
+    **Drag challenges** — coordinates are returned in pairs (source → destination). Playwright performs a `mousedown`, moves over 30 steps, then releases:
+
+    ```typescript
+    await page.mouse.move(challengeBox.x + +data1.x, challengeBox.y + +data1.y);
+    await page.mouse.down();
+    await sleep(1.1);
+    await page.mouse.move(challengeBox.x + +data2.x, challengeBox.y + +data2.y, { steps: 30 });
+    await page.mouse.up();
+    ```
+
+    If the solution for a drag challenge does not contain an even number of points, it is reported as bad to 2Captcha and a new solution is requested.
+  </Step>
+  <Step title="Submit and intercept the token">
+    After clicking, the hCaptcha submit button (`.button-submit`) is clicked. The browser intercepts the outgoing `POST /api/generate/v2/` request triggered by the successful CAPTCHA submission. The `token` field from the intercepted request body is extracted and used as the CAPTCHA token for the real generation payload.
+
+    The browser is then closed and the token is returned.
+  </Step>
+</Steps>
+
+## Configuration options
+
+### Browser selection
+
+Set `BROWSER=chromium` (default) or `BROWSER=firefox`. Chromium is strongly recommended — Firefox support exists but is less tested.
+
+<Warning>
+WebKit / Safari is not supported due to incompatibility with the rebrowser anti-detection patches.
+</Warning>
+
+### Ghost cursor
+
+Setting `BROWSER_GHOST_CURSOR=true` enables [ghost-cursor-playwright](https://github.com/Xetera/ghost-cursor) for smooth, human-like mouse movement curves when clicking CAPTCHA tiles.
+
+<Note>
+Ghost cursor does not appear to reduce the frequency of CAPTCHA challenges in practice. The option is retained for future experimentation.
+</Note>
+
+### Browser locale
+
+`BROWSER_LOCALE` is passed both to the Playwright browser context and to 2Captcha as the `lang` parameter. Using `en` or `ru` is recommended — those locales have the largest pools of available workers on 2Captcha, which reduces wait times.
+
+For a full list of supported language codes, see the [2Captcha language list](https://2captcha.com/2captcha-api#language).
+
+### GPU acceleration
+
+Set `BROWSER_DISABLE_GPU=true` when running inside Docker. This adds the `--disable-gpu` and `--enable-unsafe-swiftshader` flags to the browser launch arguments.
+
+### Headless mode
+
+Set `BROWSER_HEADLESS=false` during local development to watch the browser interact with the CAPTCHA in real time. Keep it `true` in production and Docker deployments.
+
+## Reducing CAPTCHA frequency
+
+<Tip>
+Running suno-api on macOS results in fewer CAPTCHAs than on Linux or Windows. This is because macOS is relatively uncommon in the web scraping and automation industry, so Suno's heuristics are less likely to flag it. If you have the option, prefer a macOS host.
+</Tip>
+
+## Pricing
+
+2Captcha charges per solved CAPTCHA. Typical costs:
+
+| Challenge type | Approximate cost |
+|---|---|
+| Standard click | $0.001–$0.002 per solve |
+| Drag / complex | $0.002–$0.003 per solve |
+
+Actual costs depend on challenge difficulty and current worker rates. Check your 2Captcha dashboard for up-to-date pricing.

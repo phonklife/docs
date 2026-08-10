@@ -1,0 +1,171 @@
+---
+title: "Chat Completions"
+description: "OpenAI-compatible endpoint for music generation"
+---
+
+```
+POST /v1/chat/completions
+```
+
+An OpenAI-compatible endpoint that lets you use Suno API as a drop-in replacement in any OpenAI client. The endpoint accepts the standard chat completions request format, extracts the last user message as the music generation prompt, and returns a plain-text response containing the song title, cover image, lyrics, and audio URL.
+
+<Note>
+This endpoint is designed for compatibility with OpenAI clients and agent frameworks. It does not stream tokens — it waits for Suno to finish generating the song before returning. Use [`POST /api/generate`](/api-reference/generate) for direct access with more control over generation parameters.
+</Note>
+
+## Request body
+
+<ParamField body="model" type="string" default="chirp-v3-5">
+  The Suno model to use for generation. Maps directly to Suno's `mv` parameter (e.g. `chirp-v3-5`, `chirp-v4`). Ignored by the OpenAI SDK but forwarded to Suno.
+</ParamField>
+
+<ParamField body="messages" type="object[]" required>
+  An array of message objects following the OpenAI chat format. The endpoint scans the array in order and uses the **last message with `role: "user"`** as the music generation prompt.
+
+  <Expandable title="message object properties">
+    <ParamField body="messages[].role" type="string" required>
+      The role of the message author. Supported values: `user`, `system`, `assistant`. Only `user` messages are used for generation.
+    </ParamField>
+
+    <ParamField body="messages[].content" type="string" required>
+      The content of the message. For `user` messages, this is the text description of the music to generate (e.g. `"An upbeat electronic dance track with heavy bass"`).
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Response
+
+The endpoint returns a plain-text string (not JSON) in the response body. The `Content-Type` is not set to `application/json` — OpenAI-compatible clients treat the body as the message content.
+
+The response body is a Markdown-formatted string with the following structure:
+
+```
+## Song Title: <title>
+![Song Cover](<image_url>)
+### Lyrics:
+<lyric>
+### Listen to the song: <audio_url>
+```
+
+<ResponseField name="body" type="string">
+  A Markdown string containing:
+
+  - **Song Title** — the title assigned by Suno.
+  - **Song Cover** — a Markdown image tag linking to the cover art URL.
+  - **Lyrics** — the generated lyrics for the song.
+  - **Listen to the song** — a direct link to the `.mp3` audio file on Suno's CDN.
+</ResponseField>
+
+<Warning>
+This endpoint returns a plain-text string, not a JSON `ChatCompletion` object. The OpenAI Python and Node.js SDKs expect JSON and will raise a parse error when used with this endpoint. Use `curl` or a raw HTTP client to call this endpoint, or call `POST /api/generate` directly for full control over the response format.
+</Warning>
+
+## Error responses
+
+| Status | Meaning |
+|--------|---------|
+| `400`  | No `user` message found in the `messages` array |
+| `500`  | Internal server error or Suno API error |
+
+## Examples
+
+<CodeGroup>
+
+```bash curl
+curl -X POST http://localhost:3000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "chirp-v3-5",
+    "messages": [
+      {
+        "role": "user",
+        "content": "An upbeat electronic dance track with heavy bass"
+      }
+    ]
+  }'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "http://localhost:3000/v1/chat/completions",
+    json={
+        "model": "chirp-v3-5",
+        "messages": [
+            {"role": "user", "content": "An upbeat electronic dance track with heavy bass"}
+        ]
+    }
+)
+print(response.text)
+```
+
+```javascript JavaScript
+const response = await fetch("http://localhost:3000/v1/chat/completions", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    model: "chirp-v3-5",
+    messages: [
+      { role: "user", content: "An upbeat electronic dance track with heavy bass" }
+    ]
+  })
+});
+const text = await response.text();
+console.log(text);
+```
+
+</CodeGroup>
+
+### Example response
+
+```markdown
+## Song Title: Electric Pulse
+![Song Cover](https://cdn1.suno.ai/image_abc123.jpeg)
+### Lyrics:
+[Verse]
+Feel the rhythm in your chest
+Bass line driving east to west
+[Chorus]
+Electric pulse taking over tonight
+### Listen to the song: https://cdn1.suno.ai/abc123.mp3
+```
+
+## Use cases
+
+### GPTs and OpenAI Actions
+
+Because this endpoint mirrors the OpenAI chat completions API, you can point a custom GPT's action or OpenAI Assistant's tool call at `POST /v1/chat/completions` with no additional configuration. The GPT sends a natural-language description and receives a formatted song result it can display inline.
+
+### LangChain integration
+
+Because the response is plain text (not a structured JSON), wrap the endpoint in a LangChain `Tool` using a plain HTTP call rather than the OpenAI SDK integration:
+
+```python
+import requests
+from langchain.tools import Tool
+
+def generate_music(prompt: str) -> str:
+    response = requests.post(
+        "http://localhost:3000/v1/chat/completions",
+        json={
+            "model": "chirp-v3-5",
+            "messages": [{"role": "user", "content": prompt}]
+        }
+    )
+    return response.text
+
+music_tool = Tool(
+    name="GenerateMusic",
+    func=generate_music,
+    description="Generate music from a text description using Suno AI. Returns song title, cover, lyrics, and audio URL."
+)
+```
+
+### GPTs and OpenAI Actions
+
+Because this endpoint accepts the OpenAI chat completions request format, you can point a custom GPT action at `POST /v1/chat/completions`. The GPT sends a natural-language description and receives a Markdown-formatted song result it can display inline.
+
+<Note>
+The `model` field in the request body is not forwarded to Suno's generation API — the endpoint always uses the `DEFAULT_MODEL` constant (`chirp-v3-5`). The `model` field is accepted for API compatibility but has no effect on the output.
+</Note>
