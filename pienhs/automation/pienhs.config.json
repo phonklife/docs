@@ -1,0 +1,7 @@
+{
+  "project": "THE_GRINDING_WHEEL",
+  "bpm": 130,
+  "milestones": ["M0","M1","M2","M3","M4","M5","M6","M7"],
+  "decision_states": ["PRESERVE","CORRECT","REPLACE","DEFER"],
+  "workflow_states": ["IDEA","READY","IN_PROGRESS","REVIEW","APPROVED","DEFERRED","REJECTED","RELEASED"]
+}
