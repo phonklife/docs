@@ -1,0 +1,28 @@
+name: PIENHS Validate
+
+on:
+  push:
+    branches: [main, "pienhs/**"]
+    paths:
+      - "pienhs/automation/**"
+      - ".github/workflows/pienhs-*.yml"
+  pull_request:
+    paths:
+      - "pienhs/automation/**"
+      - ".github/workflows/pienhs-*.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate PIENHS state
+        run: python pienhs/automation/scripts/validate_project.py
+      - name: Build dashboard
+        run: python pienhs/automation/scripts/build_dashboard.py
+      - name: Display dashboard
+        run: cat pienhs/automation/PIENHS/00_SYSTEM/STATUS_DASHBOARD.md
