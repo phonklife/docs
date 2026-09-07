@@ -1,0 +1,20 @@
+name: PIENHS Release Gate
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate PIENHS state
+        run: python pienhs/automation/scripts/validate_project.py
+      - name: Enforce M7 release checklist
+        run: python pienhs/automation/scripts/release_gate.py
