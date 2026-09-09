@@ -16,7 +16,7 @@ This endpoint is designed for compatibility with OpenAI clients and agent framew
 ## Request body
 
 <ParamField body="model" type="string" default="chirp-v3-5">
-  The Suno model to use for generation. Maps directly to Suno's `mv` parameter (e.g. `chirp-v3-5`, `chirp-v4`). Ignored by the OpenAI SDK but forwarded to Suno.
+  Compatibility field for OpenAI-style clients. Use `chirp-v3-5` unless you have verified your deployment supports a different generation model through this endpoint.
 </ParamField>
 
 <ParamField body="messages" type="object[]" required>
@@ -135,7 +135,7 @@ Electric pulse taking over tonight
 
 ### GPTs and OpenAI Actions
 
-Because this endpoint mirrors the OpenAI chat completions API, you can point a custom GPT's action or OpenAI Assistant's tool call at `POST /v1/chat/completions` with no additional configuration. The GPT sends a natural-language description and receives a formatted song result it can display inline.
+Because this endpoint accepts the OpenAI chat completions request format, you can point a custom GPT action at `POST /v1/chat/completions`. The GPT sends a natural-language description and receives a Markdown-formatted song result it can display inline.
 
 ### LangChain integration
 
@@ -161,11 +161,3 @@ music_tool = Tool(
     description="Generate music from a text description using Suno AI. Returns song title, cover, lyrics, and audio URL."
 )
 ```
-
-### GPTs and OpenAI Actions
-
-Because this endpoint accepts the OpenAI chat completions request format, you can point a custom GPT action at `POST /v1/chat/completions`. The GPT sends a natural-language description and receives a Markdown-formatted song result it can display inline.
-
-<Note>
-The `model` field in the request body is not forwarded to Suno's generation API — the endpoint always uses the `DEFAULT_MODEL` constant (`chirp-v3-5`). The `model` field is accepted for API compatibility but has no effect on the output.
-</Note>

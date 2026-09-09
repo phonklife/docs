@@ -58,6 +58,12 @@
         "tab": "API Reference",
         "groups": [
           {
+            "group": "Overview",
+            "pages": [
+              "api-reference/introduction"
+            ]
+          },
+          {
             "group": "Music Generation",
             "pages": [
               "api-reference/generate",

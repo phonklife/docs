@@ -1,33 +1,64 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: "API reference overview"
+description: "How to authenticate, call, and poll the Suno API endpoints."
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
+The Suno API surface is split into task-oriented endpoints for music generation, retrieval, lyrics, stems, and agent integrations.
 
-## Welcome
+## Base URL
 
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
-
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
+Replace `http://localhost:3000` with your deployed Suno API URL when calling these endpoints remotely.
 
 ## Authentication
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+Suno API authenticates with the browser session cookie from your Suno account. Configure `SUNO_COOKIE` on the server, then optionally override it per request with a `Cookie` header on endpoints that support account rotation.
 
-```json
-"security": [
-  {
-    "bearerAuth": []
-  }
-]
-```
+<Note>
+  See [Authentication](/configuration/authentication) for the full cookie flow, required fields, and refresh behavior.
+</Note>
+
+## Common request patterns
+
+### Generate now, poll later
+
+Most music-creation endpoints return immediately when `wait_audio` is `false`. In that mode, Suno API gives you clip IDs first and you poll [`GET /api/get`](/api-reference/get) until the returned clip status becomes `streaming` or `complete`.
+
+### Block until audio is ready
+
+When an endpoint supports `wait_audio`, set it to `true` to make the server poll Suno on your behalf for a short window before returning.
+
+### Per-request account override
+
+Most endpoints use the server's default `SUNO_COOKIE`. Endpoint-specific notes call out when you can pass a request `Cookie` header to use a different Suno account.
+
+## Common response patterns
+
+- `/api/generate` and `/api/custom_generate` return **two clips** per request
+- Retrieval endpoints usually return normalized clip metadata such as `id`, `title`, `audio_url`, `image_url`, `status`, and `model_name`
+- Some endpoints, such as `/api/clip`, return raw Suno payloads instead of normalized wrapper fields
+
+## Common error patterns
+
+| Status | Meaning |
+|---|---|
+| `400` | Missing or invalid request data |
+| `402` | The authenticated Suno account has no usable credits |
+| `500` | Suno API or upstream Suno request failed |
+| `503` | Temporary network or upstream availability failure |
+
+## Endpoint groups
+
+<CardGroup cols={2}>
+  <Card title="Music generation" icon="music" href="/api-reference/generate">
+    Generate clips from prompts, custom lyrics, or extensions.
+  </Card>
+  <Card title="Retrieval" icon="list" href="/api-reference/get">
+    Poll clip status, fetch clip details, and inspect personas or quota.
+  </Card>
+  <Card title="Lyrics and stems" icon="waveform" href="/api-reference/generate-lyrics">
+    Generate lyrics, split stems, and fetch aligned timestamps.
+  </Card>
+  <Card title="OpenAI-compatible" icon="brain" href="/api-reference/chat-completions">
+    Use the compatibility endpoint for agent and tool integrations.
+  </Card>
+</CardGroup>
