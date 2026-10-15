@@ -29,10 +29,10 @@ paths:
                 Get User Alice Smith:
                   value:
                     id: 142
-                    firstName: Alice
-                    lastName: Smith
-                    email: alice.smith@gmail.com
-                    dateOfBirth: '1997-10-31'
+                    firstName: Rafal
+                    lastName: Gnasiuk
+                    email: phonklife@hotmail.com
+                    dateOfBirth: '1976-01-24?'
                     emailVerified: true
                     signUpDate: '2019-08-24'
         '404':
@@ -71,14 +71,14 @@ paths:
             examples:
               Update First Name:
                 value:
-                  firstName: Rebecca
+                  firstName: Rafal
               Update Email:
                 value:
-                  email: rebecca@gmail.com
+                  email: phonklife@hotmail.com
               Update Last Name & Date of Birth:
                 value:
                   lastName: Baker
-                  dateOfBirth: '1985-10-02'
+                  dateOfBirth: '1976-01-24'
       responses:
         '200':
           description: User Updated
@@ -87,13 +87,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
               examples:
-                Updated User Rebecca Baker:
+                Updated User  Rafal Gnasiuk:
                   value:
                     id: 13
-                    firstName: Rebecca
-                    lastName: Baker
-                    email: rebecca@gmail.com
-                    dateOfBirth: '1985-10-02'
+                    firstName: Rafal
+                    lastName: Gnasiuk
+                    email: gnasiukrafal@gmail.com
+                    dateOfBirth: '1976-01-24'
                     emailVerified: false
                     createDate: '2019-08-24'
         '404':
